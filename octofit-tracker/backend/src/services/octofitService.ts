@@ -91,8 +91,51 @@ export async function getLeaderboard() {
   return teams.map((team, index) => ({ ...team, rank: index + 1 }));
 }
 
-export async function suggestWorkouts(_userEmail: string) {
-  return Workout.find().limit(1).lean();
+export async function suggestWorkouts(userEmail: string) {
+  const user = await User.findOne({ email: userEmail }).lean();
+  if (!user) {
+    throw Object.assign(new Error('User was not found'), { status: 404 });
+  }
+
+  const [activities, workouts] = await Promise.all([
+    Activity.find({ user: user._id }).sort({ occurredAt: -1 }).limit(10).lean(),
+    Workout.find().lean(),
+  ]);
+
+  const focusForActivity: Record<string, string> = {
+    run: 'endurance',
+    running: 'endurance',
+    cycle: 'endurance',
+    cycling: 'endurance',
+    walk: 'endurance',
+    walking: 'endurance',
+    swim: 'endurance',
+    swimming: 'endurance',
+    strength: 'strength',
+    weights: 'strength',
+  };
+  const recentActivity = activities[0];
+  const activityFocus = recentActivity
+    ? focusForActivity[recentActivity.type.toLowerCase()] ?? recentActivity.type.toLowerCase()
+    : undefined;
+  const normalizeFocus = (focus: string | undefined) => focus?.trim().toLowerCase();
+  const goalFocus = normalizeFocus(user.fitnessGoal);
+  const preferredFocus = workouts.some((workout) => normalizeFocus(workout.focus) === goalFocus)
+    ? goalFocus
+    : workouts.some((workout) => normalizeFocus(workout.focus) === activityFocus)
+      ? activityFocus
+      : undefined;
+
+  return workouts
+    .sort((first, second) => Number(normalizeFocus(second.focus) === preferredFocus) - Number(normalizeFocus(first.focus) === preferredFocus))
+    .map((workout) => ({
+      ...workout,
+      reason: normalizeFocus(workout.focus) === goalFocus
+        ? `Recommended for your ${user.fitnessGoal} goal.`
+        : recentActivity
+          ? `Recommended based on your recent ${recentActivity.type} activity.`
+          : 'Recommended based on your fitness profile.',
+    }));
 }
 
 export { User };
