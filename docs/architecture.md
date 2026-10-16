@@ -30,13 +30,21 @@ OctoFit Tracker is a three-tier application for a school fitness program. The st
 
 Record your plan here before editing code.
 
-- Presentation tier decision:
-- Logic tier decision:
-- Data tier decision:
-- Activity tracking approach:
-- Team management approach:
-- Leaderboard approach:
-- Workout suggestions approach:
+- Presentation tier decision: Keep React components focused on rendering and user interaction; use the shared API client for all `/api` requests, with visible loading, empty, and error states.
+- Logic tier decision: Keep request validation and capability behavior in the Express service layer; routes should remain thin and translate service results into the existing response shapes.
+- Data tier decision: Add required Mongoose validation and defaults to the existing models; keep seed operations idempotent and preserve unrelated records.
+- Activity tracking approach: Validate submitted IDs and required fields before writing, confirm the referenced user and team exist, then compute points and set `occurredAt` in the service.
+- Team management approach: Require a team name, preserve mascot and members, and rely on the model's empty members default when none are submitted.
+- Leaderboard approach: Aggregate activity points by team, sort highest total first, and assign 1-based ranks.
+- Workout suggestions approach: Find the user by email, use their goal and recent activities to rank matching workouts, and include a short reason; return a deliberate 4xx for an unknown user.
+
+## Suggested implementation order
+
+1. Complete and test the data tier first: implement model validation/defaults and verify the idempotent seed behavior with `npm run test:data --prefix octofit-tracker/backend`.
+2. Implement activity and team service behavior using the validated models; verify request validation and persistence with `npm run test:api --prefix octofit-tracker/backend`.
+3. Implement the leaderboard aggregation and personalized workout suggestions in the service layer; rerun the API contract tests.
+4. Connect each presentation component through the shared API client and implement loading, empty, success, and error states; run `npm test --prefix octofit-tracker/frontend`.
+5. Run both build checks and rerun the data, API, and frontend tests to verify the integrated app without changing the documented tier boundaries or port configuration.
 
 ## Test plan
 
