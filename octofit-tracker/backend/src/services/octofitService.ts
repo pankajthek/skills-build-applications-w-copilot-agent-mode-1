@@ -40,8 +40,27 @@ export async function listTeams() {
   return Team.find().lean();
 }
 
-export async function createTeam(_input: unknown) {
-  throw Object.assign(new Error('Team validation is not implemented yet'), { status: 501 });
+export async function createTeam(input: unknown) {
+  if (typeof input !== 'object' || input === null) {
+    throw Object.assign(new Error('Team input must be an object'), { status: 400 });
+  }
+
+  const { name, mascot, members } = input as Record<string, unknown>;
+  const isObjectId = (value: unknown): value is string =>
+    typeof value === 'string' && /^[\da-f]{24}$/i.test(value);
+
+  if (typeof name !== 'string' || !name.trim() || typeof mascot !== 'string' || !mascot.trim()) {
+    throw Object.assign(new Error('Team name and mascot are required'), { status: 400 });
+  }
+  if (members !== undefined && (!Array.isArray(members) || !members.every(isObjectId))) {
+    throw Object.assign(new Error('Team members must be valid IDs'), { status: 400 });
+  }
+
+  return Team.create({
+    name: name.trim(),
+    mascot: mascot.trim(),
+    members: members ?? [],
+  });
 }
 
 export async function getLeaderboard() {
